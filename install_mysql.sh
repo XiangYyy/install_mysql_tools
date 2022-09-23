@@ -167,7 +167,7 @@ function InstallSysPkgs() {
 
 	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ]; then
 		EchoInfo "Install sys pkgs"
-		if ! yum install perl perl-Data-Dumper libaio autoconf net-tools numactl libaio -y; then
+		if ! yum install perl perl-Data-Dumper libaio autoconf net-tools numactl -y; then
 			EchoError "Install sys pkgs faild"
 			exit 1
 		fi

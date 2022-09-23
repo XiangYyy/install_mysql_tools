@@ -30,6 +30,7 @@
 + MGR_PORT：MGR 集群通信端口
   + 端口需与 mysql 端口和 mysql admin 端口不同
   + 如不配置，默认为 mysql 端口 + 2w
++ 具体配置参考：https://blog.xiangy.cloud/post/mysql8.0-install-mgr/
 
 
 ### 其他配置
