@@ -51,3 +51,4 @@
 ```bash
 sudo bash install_mysql.sh -v 8.0.28 -p 3306
 ```
++ 脚本运行成功后会自动开启 mysql，后续启停操作可通过 mysql 目录下(如：/data/mysql3306/mysql8.0.28) start_3306.sh/stop_3306.sh 两脚本控制
