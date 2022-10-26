@@ -494,7 +494,7 @@ function SetMySQLConfig() {
 	fi
 	sed -i "s#{{ MYSQL_SERVER_ID }}#$MYSQL_SERVER_ID#g" "$my_config_path"
 	sed -i "s#{{ MYSQL_SOCKET_PATH }}#$MYSQL_SOCKET_PATH#g" "$my_config_path"
-	sed -i "s#{{ INNODB_BUFFER_POOL_SIZE }}#1G#g" "$my_config_path"
+	# sed -i "s#{{ INNODB_BUFFER_POOL_SIZE }}#1G#g" "$my_config_path"
 	sed -i "s#{{ BINLOG_CHECKSUM }}#$binlog_checksum#g" "$my_config_path"
 
 	if [ "$DEFAULT_NATIVE_PASSWORD" -ne "0" ]; then
@@ -523,8 +523,8 @@ function SetMySQLConfig() {
 
 	if [ "$OS_RAM_TOTAL" -ge "2" ]; then
 		innodb_buffer_pool_size=$((OS_RAM_TOTAL / 2))G
-		sed -i "s#{{ INNODB_BUFFER_POOL_SIZE }}#${innodb_buffer_pool_size}G#" "$my_config_path"
 	fi
+	sed -i "s#{{ INNODB_BUFFER_POOL_SIZE }}#${innodb_buffer_pool_size}#" "$my_config_path"
 
 	if [ "$MGR_ENABLE" -eq "1" ]; then
 		SETMySQLMGRConfig "$my_config_path"
