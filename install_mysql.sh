@@ -3,7 +3,7 @@
 ## Time:20220908
 ## 支持 MySQL5.7 mysql8.0 Centos Ubuntu
 ## 已测试:
-### 操作系统:Centos7.9 Ubuntu20.4
+### 操作系统:Centos7.9	Ubuntu20.4	Kylin V10
 ### mysql版本:8.0.30 5.7.39
 
 ## TODO
@@ -144,6 +144,9 @@ function InitGetOSMsg() {
 	elif [ -f "/etc/issue" ] && [ "$(awk '{print $1}' /etc/issue)" = "Ubuntu" ]; then
 		OS_NAME="Ubuntu"
 		OS_VERSION="$(awk '{print $2}' /etc/issue | head -n 1)"
+	elif [ -f "/etc/kylin-release" ] && [ "$(awk '{print $1}' /etc/kylin-release)" = "Kylin" ]; then
+		OS_NAME="Kylin"
+		OS_VERSION="$(awk -F 'release ' '{print $2}' /etc/kylin-release | awk '{print $1}')"
 	else
 		EchoError "OS Not Support"
 		exit 1
@@ -165,9 +168,9 @@ function InstallSysPkgs() {
 		return 0
 	fi
 
-	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ]; then
+	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ]; then
 		EchoInfo "Install sys pkgs"
-		if ! yum install perl perl-Data-Dumper libaio autoconf net-tools numactl -y; then
+		if ! yum install perl perl-Data-Dumper libaio autoconf net-tools numactl tar -y; then
 			EchoError "Install sys pkgs faild"
 			exit 1
 		fi
@@ -333,14 +336,14 @@ function SetSaveDir() {
 function SetSysSetting() {
 	InstallSysPkgs
 
-	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ]; then
+	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ]; then
 		SetCentOSSySSetting
-		AddMySQLUser
 	fi
 	if [ "$OS_NAME" = "Ubuntu" ]; then
 		SetUbuntuSySSetting
-		AddMySQLUser
 	fi
+
+	AddMySQLUser
 
 }
 
@@ -351,7 +354,7 @@ function AddMySQLUser() {
 		return 0
 	fi
 
-	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ]; then
+	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ]; then
 		EchoInfo "add new user $RUN_USER"
 		useradd -s /sbin/nologin -r -m $RUN_USER
 	fi

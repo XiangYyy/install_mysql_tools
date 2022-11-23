@@ -5,6 +5,7 @@
 + 兼容 CentOS 7
 + 兼容 RedHat 7
 + 兼容 Ubuntu 20.04
++ 兼容 Kylin v10(银河麒麟)
 
 ### 兼容 mysql 版本
 + 兼容 MySQL5.7
