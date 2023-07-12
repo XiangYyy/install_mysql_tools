@@ -3,7 +3,7 @@
 ## Time:20220908
 ## 支持 MySQL5.7 mysql8.0 Centos Ubuntu
 ## 已测试:
-### 操作系统:Centos7.9	Ubuntu20.4	Kylin V10
+### 操作系统:Centos7.9	Ubuntu20.4	Kylin V10 Rocky8
 ### mysql版本:8.0.30 5.7.39
 
 ## TODO
@@ -24,6 +24,8 @@ OS_CPU_TOTAL=""
 OS_RAM_TOTAL=""
 MAIN_VERSION_NU=""
 SUB_VERSION_NU=""
+
+SUPPORT_DEPLOY_TYPE=("local" "mgr" "semisync")
 
 # 运行用户
 RUN_USER="mysql"
@@ -70,6 +72,20 @@ function CheckEnterArgs() {
 	fi
 }
 
+function IsValueInList() {
+	local value="$1"
+	shift
+	local list=("$@")
+
+	for item in "${list[@]}"; do
+		if [[ "$item" == "$value" ]]; then
+			return 0 # 值在列表中
+		fi
+	done
+
+	return 1 # 值不在列表中
+}
+
 # check port
 function CheckPort() {
 	local min_sys_tmp_port
@@ -101,7 +117,7 @@ function CheckPort() {
 		echo "admin port check $ADMIN_PORT pass"
 	fi
 
-	if [ "$MAIN_VERSION_NU" = "8.0" ] && [ "$MGR_ENABLE" -eq "1" ]; then
+	if [ "$MAIN_VERSION_NU" = "8.0" ] && [ "$DEPLOY_TYPE" = "mgr" ]; then
 		if ! [[ $MGR_PORT =~ ^[0-9]+$ ]] || [ "$MGR_PORT" -ge "$min_sys_tmp_port" ] ||
 			[ "$MGR_PORT" -le "1025" ]; then
 			EchoError "mgr port $MGR_PORT not allowed"
@@ -147,6 +163,9 @@ function InitGetOSMsg() {
 	elif [ -f "/etc/kylin-release" ] && [ "$(awk '{print $1}' /etc/kylin-release)" = "Kylin" ]; then
 		OS_NAME="Kylin"
 		OS_VERSION="$(awk -F 'release ' '{print $2}' /etc/kylin-release | awk '{print $1}')"
+	elif [ -f "/etc/redhat-release" ] && [ "$(awk '{print $1}' /etc/redhat-release)" = "Rocky" ]; then
+		OS_NAME="Rocky"
+		OS_VERSION="$(awk -F 'release ' '{print $2}' /etc/redhat-release | awk '{print $1}' | awk -F '.' -v OFS='.' '{print $1,$2}')"
 	else
 		EchoError "OS Not Support"
 		exit 1
@@ -168,9 +187,16 @@ function InstallSysPkgs() {
 		return 0
 	fi
 
-	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ]; then
+	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ] || [ "$OS_NAME" = "Rocky" ]; then
 		EchoInfo "Install sys pkgs"
 		if ! yum install perl perl-Data-Dumper libaio autoconf net-tools numactl tar -y; then
+			EchoError "Install sys pkgs faild"
+			exit 1
+		fi
+	fi
+
+	if [ "$OS_NAME" = "Rocky" ]; then
+		if ! yum install ncurses-compat-libs -y; then
 			EchoError "Install sys pkgs faild"
 			exit 1
 		fi
@@ -193,12 +219,12 @@ function Init() {
 		exit 1
 	fi
 
+	InitAppendPkgName "$ARG_VERSION"
 	EchoInfo "load install config"
 	# load config
 	# shellcheck source=/dev/null
 	source "./install_mysql.conf"
 
-	InitAppendPkgName "$ARG_VERSION"
 	InitGetOSMsg
 	InitAdminSetting
 	InitMGRPORT
@@ -336,7 +362,7 @@ function SetSaveDir() {
 function SetSysSetting() {
 	InstallSysPkgs
 
-	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ]; then
+	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ] || [ "$OS_NAME" = "Rocky" ]; then
 		SetCentOSSySSetting
 	fi
 	if [ "$OS_NAME" = "Ubuntu" ]; then
@@ -354,7 +380,7 @@ function AddMySQLUser() {
 		return 0
 	fi
 
-	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ]; then
+	if [ "$OS_NAME" = "CentOS" ] || [ "$OS_NAME" = "RedHat" ] || [ "$OS_NAME" = "Kylin" ] || [ "$OS_NAME" = "Rocky" ]; then
 		EchoInfo "add new user $RUN_USER"
 		useradd -s /sbin/nologin -r -m $RUN_USER
 	fi
@@ -382,6 +408,30 @@ function CheckTemplateConfigPath() {
 	fi
 }
 
+function CheckDeployType() {
+	if ! IsValueInList "$DEPLOY_TYPE" "${SUPPORT_DEPLOY_TYPE[@]}"; then
+		EchoError "DEPLOY TYPE $DEPLOY_TYPE not support,only support:${SUPPORT_DEPLOY_TYPE[*]}"
+		exit 1
+	fi
+
+	if [ "$MAIN_VERSION_NU" = "5.7" ] && [ "$DEPLOY_TYPE" = "mgr" ]; then
+		EchoError "this scripts on mysql 5.7 not support MGR"
+		exit 1
+	fi
+
+	if [ "$MAIN_VERSION_NU" = "5.7" ] && [ "$DEPLOY_TYPE" = "semisync" ]; then
+		EchoError "this scripts on mysql 5.7 not support Semi Synchronous Replication"
+		exit 1
+	fi
+
+	if [ "$DEPLOY_TYPE" = "semisync" ]; then
+		if [ "$SEMI_ROLE" != "leader" ] && [ "$SEMI_ROLE" != "flower" ]; then
+			EchoError "Semi Synchronous Replication not support role: $SEMI_ROLE,only support: leader/flower"
+			exit 1
+		fi
+	fi
+}
+
 # 预检
 function PreCheck() {
 	EchoInfo "start run precheck"
@@ -390,10 +440,7 @@ function PreCheck() {
 	CheckPkgVersion
 	CheckMySQLPath
 	CheckTemplateConfigPath
-	if [ "$MAIN_VERSION_NU" = "5.7" ] && [ "$MGR_ENABLE" -eq "1" ]; then
-		EchoError "this scripts on mysql 5.7 not support MGR"
-		exit 1
-	fi
+	CheckDeployType
 }
 
 # 开启 MGR 相关配置
@@ -429,6 +476,32 @@ function SETMySQLMGRConfig() {
 		fi
 	done
 	sed -i "s/{{ GROUP_REPLICATION_GROUP_ADDRESS }}/$group_replication_grou_address/g" "$my_config_path"
+
+}
+
+function SETMySQLSemySyncConfig() {
+	local my_config_path="$1"
+
+	sed -i "s/#loose-plugin_load/loose-plugin_load/g" "$my_config_path"
+
+	# 更改 leader 角色的相关配置
+	if [ "$SEMI_ROLE" = "leader" ]; then
+		# 开启 主 semi
+		sed -i "s/#loose-rpl_semi_sync_master_enabled/loose-rpl_semi_sync_master_enabled/g" "$my_config_path"
+		# 设置 主 等待 ack 的时间
+		sed -i "s/#loose-rpl_semi_sync_master_timeout/loose-rpl_semi_sync_master_timeout/g" "$my_config_path"
+		# 设置 主 等待 ack 的个数
+		sed -i "s/#loose-rpl_semi_sync_master_wait_for_slave_count/loose-rpl_semi_sync_master_wait_for_slave_count/g" "$my_config_path"
+		# 设置主 sync 模式
+		sed -i "s/#loose-rpl_semi_sync_master_wait_point/loose-rpl_semi_sync_master_wait_point/g" "$my_config_path"
+	fi
+	if [ "$SEMI_ROLE" = "leader" ]; then
+		sed -i "s/#loose-rpl_semi_sync_slave_enabled/loose-rpl_semi_sync_slave_enabled/g" "$my_config_path"
+		if [ "$SLAVE_READ_ONLY" -eq 1 ]; then
+			sed -i "s/#read_only/read_only/g" "$my_config_path"
+			sed -i "s/#super_read_only/super_read_only/g" "$my_config_path"
+		fi
+	fi
 
 }
 
@@ -468,6 +541,11 @@ function SetMySQLConfig() {
 			sed -i "s#slave#replica#g" "$my_config_path"
 		fi
 
+		if [ "$SUB_VERSION_NU" -lt "23" ]; then
+			sed -i "s/replication_optimize_for_static_plugin_config/#replication_optimize_for_static_plugin_config/g" "$my_config_path"
+			sed -i "s/replication_sender_observe_commit_only/#replication_sender_observe_commit_only/g" "$my_config_path"
+		fi
+
 		if [ "$SUB_VERSION_NU" -ge "23" ]; then
 			sed -i "s/master_info_repository = TABLE/#master_info_repository = TABLE/g" "$my_config_path"
 			sed -i "s/relay_log_info_repository = TABLE/#relay_log_info_repository = TABLE/g" "$my_config_path"
@@ -502,6 +580,7 @@ function SetMySQLConfig() {
 
 	if [ "$DEFAULT_NATIVE_PASSWORD" -ne "0" ]; then
 		sed -i "s/#default_authentication_plugin/default_authentication_plugin/g" "$my_config_path"
+		sed -i "s/#collation_server/collation_server/g" "$my_config_path"
 	fi
 
 	# data settings
@@ -529,8 +608,11 @@ function SetMySQLConfig() {
 	fi
 	sed -i "s#{{ INNODB_BUFFER_POOL_SIZE }}#${innodb_buffer_pool_size}#" "$my_config_path"
 
-	if [ "$MGR_ENABLE" -eq "1" ]; then
+	if [ "$DEPLOY_TYPE" = "mgr" ]; then
 		SETMySQLMGRConfig "$my_config_path"
+	fi
+	if [ "$DEPLOY_TYPE" = "semisync" ]; then
+		SETMySQLSemySyncConfig "$my_config_path"
 	fi
 
 }

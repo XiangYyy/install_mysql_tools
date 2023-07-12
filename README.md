@@ -24,22 +24,32 @@
 ### 默认编码配置
 + DEFAULT_NATIVE_PASSWORD：配置为 1 后，配置文件会增加 default_authentication_plugin=mysql_native_password 以兼容 mysql5.7 默认加密格式，仅 mysql8.0 有效
 
+### 部署模式
++ DEPLOY_TYPE：
+  + local：单机部署
+  + mgr：mgr 部署(仅更改而皮质，集群关系仍需自行配置)
+    + [MySQL 部署 mgr](https://blog.xiangy.cloud/post/mysql8.0-install-mgr/)
+    + [使用 mysql shell 部署 mgr](https://blog.xiangy.cloud/post/mysql8.0-install-mgr-by-mysql-shell/)
+  + semisync：增强半同步部署(仅更改对应配置，主从关系仍需自己建立)
+
+### 主从相关配置
++ SLAVE_READ_ONLY：从库是否开启只读
+
+#### 增强半同步配置
++ SEMI_ROLE：部署的这台数据库，在半同步中的角色是怎么样的(leader/flower)
+
 ### mgr 配置(仅 mysql8.0 有效)
-+ MGR_ENABLE：是否开启 mgr
 + MGR_REPORT_HOST：部署 mysql 的节点 ip
 + GROUP_REPL_GROUP_IP：MGR 集群所有节点 ip
 + MGR_PORT：MGR 集群通信端口
   + 端口需与 mysql 端口和 mysql admin 端口不同
   + 如不配置，默认为 mysql 端口 + 2w
-+ 具体配置参考：https://blog.xiangy.cloud/post/mysql8.0-install-mgr/
-
 
 ### 其他配置
 + SKIP_SYS_PKG_INSTALL：为 1 则运行脚本时，脚本不使用 apt/yum 安装 mysql 依赖的包
 + MYSQL_SERVER_ID：mysql 的 server_id，如果为 0 ，则会根据系统时间自动生成
 + ADMIN_ADDRESS：admin port 监听的 ip，仅 mysql8.0 有效
 + ADMIN_PORT：admin port 监控的 端口，如不配置则默认为 mysql port + 1w，仅 mysql8.0 有效
-
 
 ## 使用
 + 将 mysql 二进制安装包放在脚本的 pkgs 目录下。下载地址：

@@ -21,10 +21,10 @@ character_set_server = UTF8MB4
 #default_authentication_plugin=mysql_native_password
 # 是否更改 mysql 默认排序方式
 # 如果设计数据迁移，推荐配置此参数
-collation_server = utf8mb4_unicode_ci
+#collation_server = utf8mb4_unicode_ci
 # 忽略客户端信息并使用默认的服务器字符集
 # character_set_client_handshake = FALSE
-skip_character_set_client_handshake
+#skip_character_set_client_handshake
 skip_name_resolve = 1
 default_time_zone = '+8:00'
 
@@ -138,9 +138,31 @@ slave_parallel_workers = {{ SLAVE_PARALLEL_WORKERS }}
 binlog_transaction_dependency_tracking = WRITESET
 slave_preserve_commit_order = 1
 slave_checkpoint_period = 2
+replication_optimize_for_static_plugin_config = ON
+replication_sender_observe_commit_only = ON
 
 # 从库重启是是否自动start slave
-skip_slave_start
+#skip_slave_start
+
+# 增强半同步配置
+##同时启用半同步复制的master和slave plugin
+#loose-plugin_load = "rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
+
+### 主库等待从库回复 ACK 的时间，超过这个时间会降级为异步
+#loose-rpl_semi_sync_master_timeout = 99999999
+### 主库是否开启半同步复制
+#loose-rpl_semi_sync_master_enabled = 1
+### 主库收到多少个 ACK 才认为提交成功，默认值为 1
+#loose-rpl_semi_sync_master_wait_for_slave_count = 1
+### sync 模式
+#loose-rpl_semi_sync_master_wait_point = AFTER_SYNC
+
+## 从库是否开启半同步复制
+#loose-rpl_semi_sync_slave_enabled = 1
+
+# 从库只读设置
+#read_only = 1
+#super_read_only = 1
 
 #innodb settings
 transaction_isolation = REPEATABLE-READ
@@ -148,7 +170,7 @@ innodb_buffer_pool_size = {{ INNODB_BUFFER_POOL_SIZE }}
 innodb_buffer_pool_instances = 8
 innodb_data_file_path = ibdata1:12M:autoextend
 #MGR环境中由其他节点提供容错性，可不设置双1以提高本地节点性能
-innodb_flush_log_at_trx_commit = 1 
+innodb_flush_log_at_trx_commit = 1
 innodb_log_buffer_size = 32M
 #如果线上环境的TPS较高，建议加大至1G以上，如果压力不大可以调小
 innodb_log_file_size = 1G
