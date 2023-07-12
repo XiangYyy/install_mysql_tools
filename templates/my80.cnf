@@ -148,6 +148,9 @@ replication_sender_observe_commit_only = ON
 ##同时启用半同步复制的master和slave plugin
 #loose-plugin_load = "rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"
 
+# 设为 OFF 时，当连接的 slave 节点少于 rpl_semi_sync_master_wait_for_slave_count 时，会直接降级为异步复制
+# 主动触发主从切换和部署时可设为 OFF
+#loose-rpl_semi_sync_master_wait_no_slave=OFF
 ### 主库等待从库回复 ACK 的时间，超过这个时间会降级为异步
 #loose-rpl_semi_sync_master_timeout = 99999999
 ### 主库是否开启半同步复制

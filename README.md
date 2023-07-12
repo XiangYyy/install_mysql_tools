@@ -32,10 +32,7 @@
     + [使用 mysql shell 部署 mgr](https://blog.xiangy.cloud/post/mysql8.0-install-mgr-by-mysql-shell/)
   + semisync：增强半同步部署(仅更改对应配置，主从关系仍需自己建立)
 
-### 主从相关配置
-+ SLAVE_READ_ONLY：从库是否开启只读
-
-#### 增强半同步配置
+### 增强半同步配置
 + SEMI_ROLE：部署的这台数据库，在半同步中的角色是怎么样的(leader/flower)
 
 ### mgr 配置(仅 mysql8.0 有效)

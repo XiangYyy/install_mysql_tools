@@ -494,13 +494,16 @@ function SETMySQLSemySyncConfig() {
 		sed -i "s/#loose-rpl_semi_sync_master_wait_for_slave_count/loose-rpl_semi_sync_master_wait_for_slave_count/g" "$my_config_path"
 		# 设置主 sync 模式
 		sed -i "s/#loose-rpl_semi_sync_master_wait_point/loose-rpl_semi_sync_master_wait_point/g" "$my_config_path"
+		# 节点数少于 rpl_semi_sync_master_wait_for_slave_count 时是否降级
+		sed -i "s/#loose-rpl_semi_sync_master_wait_no_slave/loose-rpl_semi_sync_master_wait_no_slave/g" "$my_config_path"
 	fi
-	if [ "$SEMI_ROLE" = "leader" ]; then
+	if [ "$SEMI_ROLE" = "flower" ]; then
 		sed -i "s/#loose-rpl_semi_sync_slave_enabled/loose-rpl_semi_sync_slave_enabled/g" "$my_config_path"
-		if [ "$SLAVE_READ_ONLY" -eq 1 ]; then
-			sed -i "s/#read_only/read_only/g" "$my_config_path"
-			sed -i "s/#super_read_only/super_read_only/g" "$my_config_path"
-		fi
+		# 部署时开启 readonly 存在问题，手动更改
+		# if [ "$SLAVE_READ_ONLY" -eq 1 ]; then
+		# 	sed -i "s/#read_only/read_only/g" "$my_config_path"
+		# 	sed -i "s/#super_read_only/super_read_only/g" "$my_config_path"
+		# fi
 	fi
 
 }
@@ -535,10 +538,6 @@ function SetMySQLConfig() {
 
 		if [ "$SUB_VERSION_NU" -le "22" ]; then
 			binlog_checksum="NONE"
-		fi
-
-		if [ "$SUB_VERSION_NU" -ge "26" ]; then
-			sed -i "s#slave#replica#g" "$my_config_path"
 		fi
 
 		if [ "$SUB_VERSION_NU" -lt "23" ]; then
@@ -615,6 +614,14 @@ function SetMySQLConfig() {
 		SETMySQLSemySyncConfig "$my_config_path"
 	fi
 
+	if [ "$MAIN_VERSION_NU" = "8.0" ] && [ "$SUB_VERSION_NU" -ge "26" ]; then
+		sed -i "s#slave#replica#g" "$my_config_path"
+		# semi sync 插件 部分参数 slave 未改名
+		sed -i "s#loose-rpl_semi_sync_master_wait_for_replica_count#loose-rpl_semi_sync_master_wait_for_slave_count#g" "$my_config_path"
+		sed -i "s#loose-rpl_semi_sync_master_wait_no_replica#loose-rpl_semi_sync_master_wait_no_slave#g" "$my_config_path"
+
+	fi
+
 }
 
 # 初始化 mysql 数据
@@ -681,9 +688,9 @@ function SetMySQLSecuritySetting() {
 	EchoInfo "set mysql security setting"
 
 	# if [ "$MAIN_VERSION_NU" = "5.7" ]; then
-	echo "start mysql,sleepp 30s"
+	echo "start mysql,sleepp 60s"
 	"${MYSQL_BASE_PATH}"/bin/mysqld_safe --defaults-file="${MYSQL_DATA_PATH}/my_${ARG_PORT}.cnf" &
-	sleep 30
+	sleep 60
 	EchoInfo "set root password"
 	"$MYSQL_BASE_PATH"/bin/mysqladmin -u root password "$MYSQL_PASS" -S "${MYSQL_SOCKET_PATH}"
 	EchoInfo "delete sys user"
